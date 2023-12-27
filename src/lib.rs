@@ -14,6 +14,73 @@ pub struct Guess {
     pub mask: [Correctness; 5],
 }
 
+impl Guess {
+    pub fn matches(&self, word: &str) -> bool {
+        let mut marked = [false; 5]; // used to annotate previous guess word
+        let mut used = [false; 5]; // used to annotate current word
+
+        for (i, ((guess_char, m), current_word_char)) in self
+            .word
+            .chars()
+            .zip(self.mask.iter())
+            .zip(word.chars())
+            .enumerate()
+        {
+            match *m {
+                // Check that all the CORRECT characters are present,
+                //.. and have the right positional index in the current word
+                Correctness::Correct => {
+                    if guess_char != current_word_char {
+                        //res = false;
+                        return false;
+                    } else {
+                        marked[i] = true;
+                        used[i] = true;
+                        continue;
+                    }
+                }
+
+                // check that no WRONG characters are present in the current word
+                Correctness::Wrong => {
+                    if word.chars().enumerate().any(|(k, current_word_char)| {
+                        // checked that the current_word_char has not been used
+                        if !used[k] && guess_char == current_word_char {
+                            return false;
+                        } else {
+                            used[k] = true;
+                            marked[i] = true;
+                            true
+                        }
+                    }) {}
+                }
+
+                _ => continue,
+            }
+        }
+
+        // check that all the MISPLACED character are present even when repeated
+        // NOTE: there is no use for checking marked[i] since we are certain that
+        // ... only MISPLACED character are left as CORRECT and WRONG ones have been checked
+        for (guess_char, m) in self.word.chars().zip(self.mask.iter()) {
+            if *m == Correctness::Misplaced {
+                // find a misplaced character that does not belong to word
+                if word.chars().enumerate().any(|(k, current_word_char)| {
+                    // check that the current_word_char has not been used for CORRECT
+                    if !used[k] && guess_char == current_word_char {
+                        used[k] = true;
+                        true
+                    } else {
+                        return false;
+                    }
+                }) {
+                    continue;
+                }
+            }
+        }
+        true
+    }
+}
+
 pub trait Guesser {
     fn guess(&mut self, history: &[Guess]) -> String;
 }
@@ -106,4 +173,27 @@ macro_rules! coret {
     ($($c:tt)+) => {[
         $(coret!($c)), +
     ]};
+}
+
+#[macro_export]
+macro_rules! check_matches {
+    ($prev:literal + [$($mask:tt)+] allows $next:literal) => {
+        assert!(
+            $crate::Guess {
+                word: $prev.to_string(),
+                mask: coret![$($mask)+],
+            }
+            .matches($next)
+    )
+    };
+
+     ($prev:literal + [$($mask:tt)+] disallows $next:literal) => {
+        assert!(
+            !$crate::Guess {
+                word: $prev.to_string(),
+                mask: mask![$($mask)+],
+            }
+            .matches($next)
+        )
+    };
 }
