@@ -15,11 +15,13 @@ pub struct Guess {
 }
 
 impl Guess {
+    // TODO:
+    // REMEMBER TO USE THE CHECKED ANNOTATION FOR CORRECT IN ORDER TO SEE IF PERFORMANCE WILL IMPROVE
     pub fn matches(&self, word: &str) -> bool {
         let mut marked = [false; 5]; // used to annotate previous guess word
-        let mut used = [false; 5]; // used to annotate current word
+        let mut checked = [false; 5]; // used to annotate current_word in CORRECTNESS::MISPLACED
 
-        for (i, ((guess_char, m), current_word_char)) in self
+        'outer: for (i, ((guess_char, m), current_word_char)) in self
             .word
             .chars()
             .zip(self.mask.iter())
@@ -27,56 +29,43 @@ impl Guess {
             .enumerate()
         {
             match *m {
-                // Check that all the CORRECT characters are present,
-                //.. and have the right positional index in the current word
+                // check that all CORRECT characters are present with right position,
                 Correctness::Correct => {
                     if guess_char != current_word_char {
-                        //res = false;
                         return false;
                     } else {
                         marked[i] = true;
-                        used[i] = true;
+                        // TODO:
+                        // uncomment the line below to see if it would increase performance
+                        //checked[i] = true
                         continue;
                     }
                 }
 
                 // check that no WRONG characters are present in the current word
                 Correctness::Wrong => {
-                    if word.chars().enumerate().any(|(k, current_word_char)| {
-                        // checked that the current_word_char has not been used
-                        if !used[k] && guess_char == current_word_char {
-                            return false;
-                        } else {
-                            used[k] = true;
-                            marked[i] = true;
-                            true
-                        }
-                    }) {}
-                }
-
-                _ => continue,
-            }
-        }
-
-        // check that all the MISPLACED character are present even when repeated
-        // NOTE: there is no use for checking marked[i] since we are certain that
-        // ... only MISPLACED character are left as CORRECT and WRONG ones have been checked
-        for (guess_char, m) in self.word.chars().zip(self.mask.iter()) {
-            if *m == Correctness::Misplaced {
-                // find a misplaced character that does not belong to word
-                if word.chars().enumerate().any(|(k, current_word_char)| {
-                    // check that the current_word_char has not been used for CORRECT
-                    if !used[k] && guess_char == current_word_char {
-                        used[k] = true;
-                        true
-                    } else {
+                    if word
+                        .chars()
+                        .any(|current_word_char| guess_char == current_word_char)
+                    {
                         return false;
+                    } else {
+                        marked[i] = true;
+                        continue;
                     }
-                }) {
-                    continue;
+                }
+                Correctness::Misplaced => {
+                    for (i, w) in word.chars().enumerate() {
+                        if !checked[i] && guess_char == w {
+                            checked[i] = true;
+                            continue 'outer;
+                        }
+                    }
+                    return false;
                 }
             }
         }
+        // word passes all the tests so it must match
         true
     }
 }
@@ -177,23 +166,7 @@ macro_rules! coret {
 
 #[macro_export]
 macro_rules! check_matches {
-    ($prev:literal + [$($mask:tt)+] allows $next:literal) => {
-        assert!(
-            $crate::Guess {
-                word: $prev.to_string(),
-                mask: coret![$($mask)+],
-            }
-            .matches($next)
-    )
-    };
-
-     ($prev:literal + [$($mask:tt)+] disallows $next:literal) => {
-        assert!(
-            !$crate::Guess {
-                word: $prev.to_string(),
-                mask: mask![$($mask)+],
-            }
-            .matches($next)
-        )
+    ($prev:literal + [$($mask:tt)+] allows $next: literal) => {
+        $crate::Guess { word: $prev.to_string(), mask: coret![$($mask)+], }.matches($next)
     };
 }

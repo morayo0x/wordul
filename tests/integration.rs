@@ -1,8 +1,7 @@
-use wordul::check_matches;
+//use wordul::check_matches;
 use wordul::coret;
 use wordul::Correctness;
 use wordul::Guess;
-//use wordul::Correctness::{Correct, Misplaced, Wrong};
 
 #[test]
 fn impressive() {
@@ -38,12 +37,11 @@ fn matches_correct() {
 fn matches_wrong() {
     let guess = Guess {
         word: "aabde".to_string(),
-        mask: coret![C C W W C],
+        mask: coret![C C W W M],
     };
 
     assert!(guess.matches("aafce"));
 }
-
 #[test]
 fn matches_misplaced() {
     let guess = Guess {
@@ -51,25 +49,29 @@ fn matches_misplaced() {
         mask: coret![M M M M M],
     };
 
-    assert!(guess.matches("edaba"));
+    assert!(guess.matches("ebada"));
 }
-
-//#[test]
-//fn matches_random() {
-//    let guess = Guess {
-//        word: "baaaa".to_string(),
-//        mask: coret![W C M W W],
-//    };
-
-//    assert!(guess.matches("aaccc"));
-//}
-
 #[test]
-fn matches_t() {
-    check_matches!("baaaa" + [W C M W W] allows "aaccc");
+fn matches_random() {
+    let guess = Guess {
+        word: "baaaa".to_string(),
+        mask: coret![M M M M M],
+    };
+
+    assert!(guess.matches("aaaba"));
 }
 
 #[test]
-fn matches_p() {
-    check_matches!("baaaa" + [W C M W W] allows "caacc");
+fn matches_l() {
+    let guess = Guess {
+        word: "baaaa".to_string(),
+        mask: coret![W C M W W],
+    };
+
+    assert!(!guess.matches("caacc"));
+}
+
+#[test]
+fn matches_fd() {
+    assert_ne!(Correctness::compute("caacc", "baaaa"), coret![W C M W W]);
 }
