@@ -16,8 +16,8 @@ pub struct Guess {
 
 impl Guess {
     // TODO:
-    // REMEMBER TO USE THE CHECKED ANNOTATION FOR CORRECT IN ORDER TO SEE IF PERFORMANCE WILL IMPROVE
-    pub fn matches(&self, word: &str) -> bool {
+    // REMEMBER TO USE THE CHECKED ANNOTATION FOR <CORRECT> IN ORDER TO SEE IF PERFORMANCE WILL IMPROVE
+    pub fn possible_matches(&self, word: &str) -> bool {
         let mut marked = [false; 5]; // used to annotate previous guess word
         let mut checked = [false; 5]; // used to annotate current_word in CORRECTNESS::MISPLACED
 
@@ -37,17 +37,16 @@ impl Guess {
                         marked[i] = true;
                         // TODO:
                         // uncomment the line below to see if it would increase performance
-                        //checked[i] = true
+                        checked[i] = true;
                         continue;
                     }
                 }
 
                 // check that no WRONG characters are present in the current word
                 Correctness::Wrong => {
-                    if word
-                        .chars()
-                        .any(|current_word_char| guess_char == current_word_char)
-                    {
+                    if word.chars().enumerate().any(|(i, current_word_char)| {
+                        guess_char == current_word_char && !checked[i]
+                    }) {
                         return false;
                     } else {
                         marked[i] = true;
@@ -56,6 +55,7 @@ impl Guess {
                 }
                 Correctness::Misplaced => {
                     for (i, w) in word.chars().enumerate() {
+                        // check that all the MISPLACED character are in the guess word
                         if !checked[i] && guess_char == w {
                             checked[i] = true;
                             continue 'outer;
@@ -118,31 +118,80 @@ impl Correctness {
         //
         let mut c = [Correctness::Wrong; 5];
         let mut marked = [false; 5];
+        let mut checked = [false; 5];
 
         // Green
         for (i, (a, g)) in answer.chars().zip(guess.chars()).enumerate() {
             if a == g {
                 c[i] = Correctness::Correct;
                 marked[i] = true;
+                checked[i] = true;
             }
         }
 
         // Misplaced
-        for (i, a) in answer.chars().enumerate() {
-            if guess.chars().any(|g| {
-                if a == g && !marked[i] {
-                    marked[i] = true;
-                    return true;
-                } else {
-                    // already marked
-                    false
+        for (i, g) in guess.chars().enumerate() {
+            if !checked[i] {
+                checked[i] = true;
+                if answer.chars().enumerate().any(|(k, a)| {
+                    if !marked[k] && a == g {
+                        marked[k] = true;
+                        return true;
+                    } else {
+                        false
+                    }
+                }) {
+                    c[i] = Correctness::Misplaced;
                 }
-            }) {
-                c[i] = Correctness::Misplaced;
-                marked[i] = true;
             }
+            //if answer.chars().any(|a| {
+            //    if a == g && !marked[i] {
+            //        marked[i] = true;
+            //        return true;
+            //    } else {
+            //        // already marked
+            //        false
+            //    }
+            //}) {
+            //    c[i] = Correctness::Misplaced;
+            //    //marked[i] = true;
+            //}
         }
         c
+    }
+
+    pub fn compose() -> Vec<[Correctness; 5]> {
+        //assert_eq!(a.len(), b.len());
+        let a = [
+            Correctness::Correct,
+            Correctness::Misplaced,
+            Correctness::Wrong,
+        ];
+        let b = a.clone();
+        let mut res1 = Vec::new();
+
+        for i in a {
+            for j in &b {
+                res1.push([i, *j]);
+            }
+        }
+
+        // second compose
+        let mut res2 = Vec::new();
+        for i in &res1 {
+            for k in &res1 {
+                res2.push([i[0], i[1], k[0], k[1]]);
+            }
+        }
+
+        // final compose
+        let mut result = Vec::new();
+        for i in res2 {
+            for k in &b {
+                result.push([i[0], i[1], i[2], i[3], *k]);
+            }
+        }
+        result
     }
 }
 

@@ -1,4 +1,4 @@
-//use wordul::check_matches;
+//use wordul::possible_matchesatches;
 use wordul::coret;
 use wordul::Correctness;
 use wordul::Guess;
@@ -10,7 +10,12 @@ fn impressive() {
 
 #[test]
 fn good() {
-    assert_eq!(Correctness::compute("clear", "cello"), coret![C M M W W]);
+    assert_eq!(Correctness::compute("cigar", "mayor"), coret![W M W W C]);
+}
+
+#[test]
+fn goo() {
+    assert_eq!(Correctness::compute("aabcd", "abcde"), coret![C M M M W]);
 }
 
 #[test]
@@ -24,54 +29,85 @@ fn check_coret() {
 }
 
 #[test]
-fn matches_correct() {
+fn possible_matches_correct() {
     let guess = Guess {
         word: "aabde".to_string(),
         mask: coret![C C C C C],
     };
 
-    assert!(guess.matches("aabde"));
+    assert!(guess.possible_matches("aabde"));
 }
 
 #[test]
-fn matches_wrong() {
+fn possible_matches_wrong() {
     let guess = Guess {
         word: "aabde".to_string(),
         mask: coret![C C W W M],
     };
 
-    assert!(guess.matches("aafce"));
+    assert!(guess.possible_matches("aafce"));
 }
 #[test]
-fn matches_misplaced() {
+fn possible_matches_misplaced() {
     let guess = Guess {
         word: "aabde".to_string(),
         mask: coret![M M M M M],
     };
 
-    assert!(guess.matches("ebada"));
+    assert!(guess.possible_matches("ebada"));
 }
 #[test]
-fn matches_random() {
+fn possible_matches_random() {
     let guess = Guess {
         word: "baaaa".to_string(),
         mask: coret![M M M M M],
     };
 
-    assert!(guess.matches("aaaba"));
+    assert!(guess.possible_matches("aaaba"));
 }
 
 #[test]
-fn matches_l() {
+fn possible_matches_l() {
     let guess = Guess {
         word: "baaaa".to_string(),
         mask: coret![W C M W W],
     };
 
-    assert!(!guess.matches("caacc"));
+    assert!(guess.possible_matches("caacc"));
 }
 
 #[test]
-fn matches_fd() {
-    assert_ne!(Correctness::compute("caacc", "baaaa"), coret![W C M W W]);
+fn possible_matches_k() {
+    let guess = Guess {
+        word: "aabcd".to_string(),
+        mask: coret![C W M W M],
+    };
+
+    assert!(!guess.possible_matches("abdea"));
+}
+
+#[test]
+fn compute_b() {
+    assert_eq!(Correctness::compute("caacc", "baaaa"), coret![W C C W W]);
+}
+
+#[test]
+fn compute_c() {
+    assert_eq!(Correctness::compute("aabcd", "abcde"), coret![C M M M W]);
+}
+
+#[test]
+fn compute_d() {
+    assert_eq!(Correctness::compute("zapol", "abcdp"), coret![M W W W M]);
+}
+
+#[test]
+fn possible_matches_f() {
+    let guess = Guess {
+        word: "cigar".to_string(),
+        mask: coret![C W M W M],
+    };
+
+    // Note the negation symbol
+    assert!(!guess.possible_matches("carog"));
 }
