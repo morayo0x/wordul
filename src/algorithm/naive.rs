@@ -33,7 +33,7 @@ impl Guesser for Naive {
     fn guess(&mut self, history: &[Guess]) -> String {
         // compute the next POSSIBLE words based on the correctness of the last Guess
         if let Some(last) = history.last() {
-            self.remaining.retain(|word, _| last.possible_matches(word))
+            self.remaining.retain(|word, _| last.matches(word))
         }
 
         if history.is_empty() {
@@ -46,12 +46,12 @@ impl Guesser for Naive {
         // SMI = -SUM over all possible patterns of [(p_word(that match a give patter) * log(p_word))]
         let total_remaining = self.remaining.iter().map(|(_, count)| count).sum::<usize>() as f64;
         //
+
+        //let total_remaining = self.remaining.iter().count() as f64;
         let mut best: Option<Candidate> = None;
-        //let mut goodness = 0.0;
 
         for (&word, _count) in &self.remaining {
-            //eprintln!("Progress");
-            let mut sum = 0.0;
+            let mut goodness = 0.0;
 
             for pattern in Correctness::compose() {
                 let mut total: usize = 0;
@@ -62,27 +62,23 @@ impl Guesser for Naive {
                         word: word.to_string(),
                         mask: pattern,
                     }
-                    .possible_matches(candidate))
+                    .matches(candidate))
                     {
                         total += count;
+                        //total += 1;
                     }
                 }
                 let p_word = total as f64 / total_remaining as f64;
                 if p_word == 0.0 {
                     continue;
                 } else {
-                    sum += p_word * p_word.log2();
+                    goodness += -p_word * p_word.log2();
                 }
             }
 
-            let goodness = 0.0 - sum;
             match best {
                 Some(c) => {
                     if goodness > c.goodness {
-                        eprintln!(
-                            "Candidate {} better than {} because {} is better than {}",
-                            word, c.word, goodness, c.goodness
-                        );
                         best = Some(Candidate { word, goodness });
                     }
                 }
@@ -91,20 +87,7 @@ impl Guesser for Naive {
                 }
             }
         }
-        //    if let Some(x) = best {
-        //        if goodness > x.goodness {
-        //            //eprintln!(
-        //            //    "{} is better than {} because {} is better than {} ",
-        //            //    word, x.word, goodness, x.goodness
-        //            //);
-        //            best = Some(Candidate { word, goodness });
-        //        }
-        //    } else {
-        //        best = Some(Candidate { word, goodness });
-        //    }
-        //}
 
-        //println!("{}", best.unwrap().word);
         best.unwrap().word.to_string()
     }
 }

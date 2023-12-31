@@ -10,11 +10,10 @@ fn main() {
     for answer in GAMES.split_whitespace() {
         let guesser = Naive::new();
 
-        if let Some(score) = w.play(answer, guesser) {
-            eprintln!("Score is {}", score);
+        if let Some(c) = w.play(answer, guesser) {
+            println!("Guessed {} in {}", answer, c);
         } else {
-            eprintln!("Failed to guess");
+            println!("Failed to make a Guess");
         }
     }
-    //let guesser = Naive::
 }

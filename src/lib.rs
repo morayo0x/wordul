@@ -17,11 +17,11 @@ pub struct Guess {
 impl Guess {
     // TODO:
     // REMEMBER TO USE THE CHECKED ANNOTATION FOR <CORRECT> IN ORDER TO SEE IF PERFORMANCE WILL IMPROVE
-    pub fn possible_matches(&self, word: &str) -> bool {
+    pub fn matches(&self, word: &str) -> bool {
         let mut marked = [false; 5]; // used to annotate previous guess word
         let mut checked = [false; 5]; // used to annotate current_word in CORRECTNESS::MISPLACED
 
-        'outer: for (i, ((guess_char, m), current_word_char)) in self
+        for (i, ((guess_char, m), current_word_char)) in self
             .word
             .chars()
             .zip(self.mask.iter())
@@ -53,14 +53,54 @@ impl Guess {
                         continue;
                     }
                 }
-                Correctness::Misplaced => {
-                    for (i, w) in word.chars().enumerate() {
-                        // check that all the MISPLACED character are in the guess word
-                        if !checked[i] && guess_char == w {
-                            checked[i] = true;
-                            continue 'outer;
-                        }
+                _ => continue,
+                //Correctness::Misplaced => {
+                //    //let guess = &self.word;
+                //    // allow all the misplaced word to be present but not in the same position
+                //    for (i, w) in word.chars().enumerate() {
+                //        // make sure word character has not been checked for CORRECT
+                //        if !checked[i] {
+                //            if self.word.chars().enumerate().any(|(k, g)| {
+                //                if !marked[k] && w == g && i != k {
+                //                    checked[i] = true;
+                //                    marked[k] = true;
+                //                    true
+                //                } else {
+                //                    false
+                //                }
+                //            }) {
+                //                continue 'outer;
+                //            } else {
+                //                return false;
+                //            }
+                //        }
+                //        // check that all the MISPLACED character are in the guess word
+                //        //if !checked[i] && guess_char == w {
+                //        //checked[i] = true;
+                //        //continue 'outer;
+                //        //}
+                //    }
+                //    //return false;
+                //}
+            }
+        }
+
+        // We confirm that all misplaced characters are in word and
+        // ...they do not have the same positon as they do in last guess
+        for (i, (g, m)) in self.word.chars().zip(self.mask).enumerate() {
+            if m == Correctness::Misplaced && !marked[i] {
+                if word.chars().enumerate().any(|(k, w)| {
+                    // not in the same position as the last guess
+                    if !checked[k] && g == w && i != k {
+                        checked[k] = true;
+                        marked[i] = true;
+                        true
+                    } else {
+                        false
                     }
+                }) {
+                    continue;
+                } else {
                     return false;
                 }
             }
@@ -91,10 +131,10 @@ impl Wordle {
 
     pub fn play<G: Guesser>(&self, answer: &str, mut guesser: G) -> Option<usize> {
         // play the game a certain number of times
+        //println!("ANSWER is: {}", answer);
         let mut history = Vec::new();
         for i in 1..32 {
             let guess = guesser.guess(&history);
-
             assert!(self.dictionary.contains(&*guess));
             if answer == &guess {
                 return Some(i);
@@ -144,18 +184,6 @@ impl Correctness {
                     c[i] = Correctness::Misplaced;
                 }
             }
-            //if answer.chars().any(|a| {
-            //    if a == g && !marked[i] {
-            //        marked[i] = true;
-            //        return true;
-            //    } else {
-            //        // already marked
-            //        false
-            //    }
-            //}) {
-            //    c[i] = Correctness::Misplaced;
-            //    //marked[i] = true;
-            //}
         }
         c
     }
@@ -163,9 +191,9 @@ impl Correctness {
     pub fn compose() -> Vec<[Correctness; 5]> {
         //assert_eq!(a.len(), b.len());
         let a = [
+            Correctness::Wrong,
             Correctness::Correct,
             Correctness::Misplaced,
-            Correctness::Wrong,
         ];
         let b = a.clone();
         let mut res1 = Vec::new();
