@@ -1,7 +1,7 @@
 use crate::Correctness;
 #[allow(unused_imports)]
 use crate::{Guess, Guesser, DICTIONARY};
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 
 pub struct Naive {
     pub remaining: HashMap<&'static str, usize>,
@@ -30,7 +30,7 @@ pub struct Candidate {
 }
 
 impl Guesser for Naive {
-    fn guess(&mut self, history: &[Guess]) -> String {
+    fn guess(&mut self, history: &[Guess<'_>]) -> String {
         // compute the next POSSIBLE words based on the correctness of the last Guess
         if let Some(last) = history.last() {
             self.remaining.retain(|word, _| last.matches(word))
@@ -50,7 +50,7 @@ impl Guesser for Naive {
         //let total_remaining = self.remaining.iter().count() as f64;
         let mut best: Option<Candidate> = None;
 
-        for (&word, _count) in &self.remaining {
+        for (&word, _) in &self.remaining {
             let mut goodness = 0.0;
 
             for pattern in Correctness::compose() {
@@ -59,7 +59,7 @@ impl Guesser for Naive {
                 // TODO: could self.remaining be the Dictionary word?
                 for (&candidate, count) in &self.remaining {
                     if (Guess {
-                        word: word.to_string(),
+                        word: Cow::Borrowed(word),
                         mask: pattern,
                     }
                     .matches(candidate))

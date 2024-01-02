@@ -1,4 +1,5 @@
-//use wordul::matchesatches;
+//use wordulCow::Borrowed(::matchesatches;)
+use std::borrow::Cow;
 use wordul::coret;
 use wordul::Correctness;
 use wordul::Guess;
@@ -46,7 +47,7 @@ fn compute_d() {
 #[test]
 fn matches_correct() {
     let guess = Guess {
-        word: "aabde".to_string(),
+        word: Cow::Borrowed("aabde"),
         mask: coret![C C C C C],
     };
 
@@ -56,7 +57,7 @@ fn matches_correct() {
 #[test]
 fn matches_wrong() {
     let guess = Guess {
-        word: "aabde".to_string(),
+        word: Cow::Borrowed("aabde"),
         mask: coret![W W W W W],
     };
 
@@ -66,7 +67,7 @@ fn matches_wrong() {
 #[test]
 fn matches_misplaced() {
     let guess = Guess {
-        word: "aabde".to_string(),
+        word: Cow::Borrowed("aabde"),
         mask: coret![M M M M M],
     };
 
@@ -76,7 +77,7 @@ fn matches_misplaced() {
 #[test]
 fn matches_random() {
     let guess = Guess {
-        word: "cigar".to_string(),
+        word: Cow::Borrowed("cigar"),
         mask: coret![C M M W M],
     };
 

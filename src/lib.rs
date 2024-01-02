@@ -1,5 +1,6 @@
-use std::collections::HashSet;
+use std::{borrow::Cow, collections::HashSet};
 pub mod algorithm;
+//use std::io::Write;
 const DICTIONARY: &'static str = include_str!("../dictionary.txt");
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -9,109 +10,34 @@ pub enum Correctness {
     Wrong,
 }
 
-pub struct Guess {
-    pub word: String,
+pub struct Guess<'a> {
+    pub word: Cow<'a, str>,
     pub mask: [Correctness; 5],
 }
 
-impl Guess {
-    // TODO:
-    // REMEMBER TO USE THE CHECKED ANNOTATION FOR <CORRECT> IN ORDER TO SEE IF PERFORMANCE WILL IMPROVE
+impl Guess<'_> {
+    // the function of matches is to check whether the potential next guess = word
+    // ... by making sure that it contains all the Corect, Misplaced, and NO Wrong character
+    // ... using the coretness of the previous guess = self.word
     pub fn matches(&self, word: &str) -> bool {
-        let mut marked = [false; 5]; // used to annotate previous guess word
-        let mut checked = [false; 5]; // used to annotate current_word in CORRECTNESS::MISPLACED
-
-        for (i, ((guess_char, m), current_word_char)) in self
-            .word
-            .chars()
-            .zip(self.mask.iter())
-            .zip(word.chars())
-            .enumerate()
-        {
-            match *m {
-                // check that all CORRECT characters are present with right position,
-                Correctness::Correct => {
-                    if guess_char != current_word_char {
-                        return false;
-                    } else {
-                        marked[i] = true;
-                        // TODO:
-                        // uncomment the line below to see if it would increase performance
-                        checked[i] = true;
-                        continue;
-                    }
-                }
-
-                // check that no WRONG characters are present in the current word
-                Correctness::Wrong => {
-                    if word.chars().enumerate().any(|(i, current_word_char)| {
-                        guess_char == current_word_char && !checked[i]
-                    }) {
-                        return false;
-                    } else {
-                        marked[i] = true;
-                        continue;
-                    }
-                }
-                _ => continue,
-                //Correctness::Misplaced => {
-                //    //let guess = &self.word;
-                //    // allow all the misplaced word to be present but not in the same position
-                //    for (i, w) in word.chars().enumerate() {
-                //        // make sure word character has not been checked for CORRECT
-                //        if !checked[i] {
-                //            if self.word.chars().enumerate().any(|(k, g)| {
-                //                if !marked[k] && w == g && i != k {
-                //                    checked[i] = true;
-                //                    marked[k] = true;
-                //                    true
-                //                } else {
-                //                    false
-                //                }
-                //            }) {
-                //                continue 'outer;
-                //            } else {
-                //                return false;
-                //            }
-                //        }
-                //        // check that all the MISPLACED character are in the guess word
-                //        //if !checked[i] && guess_char == w {
-                //        //checked[i] = true;
-                //        //continue 'outer;
-                //        //}
-                //    }
-                //    //return false;
-                //}
-            }
-        }
-
-        // We confirm that all misplaced characters are in word and
-        // ...they do not have the same positon as they do in last guess
-        for (i, (g, m)) in self.word.chars().zip(self.mask).enumerate() {
-            if m == Correctness::Misplaced && !marked[i] {
-                if word.chars().enumerate().any(|(k, w)| {
-                    // not in the same position as the last guess
-                    if !checked[k] && g == w && i != k {
-                        checked[k] = true;
-                        marked[i] = true;
-                        true
-                    } else {
-                        false
-                    }
-                }) {
-                    continue;
-                } else {
-                    return false;
-                }
-            }
-        }
-        // word passes all the tests so it must match
-        true
+        // novel insight.- because I have had to write a new algorithm to approach the problem
+        // ... turns out I could re-use the implementation of Correctness::compute
+        //
+        // We assume guess = self.word && answer = word.
+        //
+        // Based on this assumption,
+        // The code below will check;
+        //  ... that word contains all the Correct chars in the right posiiton
+        // ... it will check that all the Misplaced character are
+        //  ...  (i). are present
+        //   ... (ii)  are not in the same position as the last guess, otherwise they would be Correct
+        //   .. no Wrong characters of guess are in word
+        return Correctness::compute(word, &self.word) == self.mask;
     }
 }
 
 pub trait Guesser {
-    fn guess(&mut self, history: &[Guess]) -> String;
+    fn guess(&mut self, history: &[Guess<'_>]) -> String;
 }
 
 pub struct Wordle {
@@ -130,20 +56,44 @@ impl Wordle {
     }
 
     pub fn play<G: Guesser>(&self, answer: &str, mut guesser: G) -> Option<usize> {
-        // play the game a certain number of times
-        //println!("ANSWER is: {}", answer);
         let mut history = Vec::new();
-        for i in 1..32 {
+        for i in 1..=6 {
             let guess = guesser.guess(&history);
             assert!(self.dictionary.contains(&*guess));
             if answer == &guess {
                 return Some(i);
             }
+
             let coretness = Correctness::compute(answer, &guess);
             history.push(Guess {
-                word: guess,
+                word: Cow::Owned(guess),
                 mask: coretness,
             });
+            //
+            //// TO TEST AGAINST A REAL WORLD WORDUL, WE UNCOMMENT THE LINES BELOW
+            // println!("Guess is {}", guess);
+            // println!();
+            // print!("Enter the correctness of the character in lower case: ");
+            // //sometimes the stdout maybe buffered, especially when using print!()
+            //... and so we call flush to print the content immediately
+            // io::stdout().flush().unwrap();
+            // let mut buf = String::new();
+            // io::stdin().read_line(&mut buf).unwrap();
+            //
+            // let mut coretness = Vec::new();
+            //     buf.trim().to_lowercase().chars().for_each(|c| match c {
+            //         'c' => coretness.push(Correctness::Correct),
+            //         'm' => coretness.push(Correctness::Misplaced),
+            //         'w' => coretness.push(Correctness::Wrong),
+            //         _ => panic!("a wrong character"),
+            //     });
+            //
+            //     history.push(Guess {
+            //         word: Cow::Owned(guess),
+            //         mask: coretness.try_into().unwrap_or_else(|c: Vec<_>| {
+            //             panic!("Expected an array of length of 5 got {}", c.len())
+            //         }),
+            //     });
         }
         None
     }
@@ -157,8 +107,8 @@ impl Correctness {
 
         //
         let mut c = [Correctness::Wrong; 5];
-        let mut marked = [false; 5];
-        let mut checked = [false; 5];
+        let mut marked = [false; 5]; // used to annotate answer
+        let mut checked = [false; 5]; // used to annotate guess
 
         // Green
         for (i, (a, g)) in answer.chars().zip(guess.chars()).enumerate() {
@@ -246,4 +196,12 @@ macro_rules! check_matches {
     ($prev:literal + [$($mask:tt)+] allows $next: literal) => {
         $crate::Guess { word: $prev.to_string(), mask: coret![$($mask)+], }.matches($next)
     };
+}
+
+pub enum CowUser<'a, B>
+where
+    B: 'a + ToOwned + ?Sized,
+{
+    Borrowed(&'a B),
+    Owned(<B as ToOwned>::Owned),
 }

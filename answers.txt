@@ -45,7 +45,6 @@ repay
 digit
 crate
 cluck
-spike
 mimic
 pound
 maxim
@@ -2307,3 +2306,4 @@ rower
 artsy
 rural
 shave
+spike
