@@ -1,21 +1,20 @@
-use crate::Correctness;
+use crate::{Correctness, Word};
 #[allow(unused_imports)]
 use crate::{Guess, Guesser, DICTIONARY};
-use std::{borrow::Cow, collections::HashMap};
-
 pub struct Naive {
-    pub remaining: HashMap<&'static str, usize>,
+    pub remaining: Vec<(Word, usize)>,
 }
 
 impl Naive {
     pub fn new() -> Self {
         Naive {
-            remaining: HashMap::from_iter(DICTIONARY.lines().map(|line| {
+            remaining: Vec::from_iter(DICTIONARY.lines().map(|line| {
                 let (word, count) = line
                     .split_once(" ")
                     .expect("Everyl line is Word + Space + Count");
 
                 let count = count.parse().expect("Count is not a number");
+                let word = word.as_bytes().try_into().unwrap();
 
                 (word, count)
             })),
@@ -25,19 +24,19 @@ impl Naive {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Candidate {
-    pub word: &'static str,
+    pub word: Word,
     pub goodness: f64,
 }
 
 impl Guesser for Naive {
-    fn guess(&mut self, history: &[Guess<'_>]) -> String {
+    fn guess(&mut self, history: &[Guess]) -> Word {
         // compute the next POSSIBLE words based on the correctness of the last Guess
         if let Some(last) = history.last() {
-            self.remaining.retain(|word, _| last.matches(word))
+            self.remaining.retain(|&(w, _)| last.matches(w));
         }
 
         if history.is_empty() {
-            return "tares".to_string();
+            return "tares".as_bytes().try_into().unwrap();
         }
         //*(&self.remaining.iter().count()) as f64;
         // compute the Shannon Measure of Information(SMI) for the remaining POSSIBLE words
@@ -50,16 +49,16 @@ impl Guesser for Naive {
         //let total_remaining = self.remaining.iter().count() as f64;
         let mut best: Option<Candidate> = None;
 
-        for (&word, _) in &self.remaining {
+        for &(word, _) in &self.remaining {
             let mut goodness = 0.0;
 
             for pattern in Correctness::compose() {
                 let mut total: usize = 0;
 
                 // TODO: could self.remaining be the Dictionary word?
-                for (&candidate, count) in &self.remaining {
+                for &(candidate, count) in &self.remaining {
                     if (Guess {
-                        word: Cow::Borrowed(word),
+                        word,
                         mask: pattern,
                     }
                     .matches(candidate))
@@ -88,6 +87,6 @@ impl Guesser for Naive {
             }
         }
 
-        best.unwrap().word.to_string()
+        best.unwrap().word
     }
 }

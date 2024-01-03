@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet};
+use std::{env, process, usize};
 pub mod algorithm;
 //use std::io::Write;
 const DICTIONARY: &'static str = include_str!("../dictionary.txt");
@@ -10,18 +10,21 @@ pub enum Correctness {
     Wrong,
 }
 
-pub struct Guess<'a> {
-    pub word: Cow<'a, str>,
+pub type Word = [u8; 5];
+pub struct Guess {
+    pub word: Word,
     pub mask: [Correctness; 5],
 }
 
-impl Guess<'_> {
+impl Guess {
     // the function of matches is to check whether the potential next guess = word
-    // ... by making sure that it contains all the Corect, Misplaced, and NO Wrong character
+    // ... by making sure that it contains all the Correct, Misplaced, and NO Wrong character
     // ... using the coretness of the previous guess = self.word
-    pub fn matches(&self, word: &str) -> bool {
+    pub fn matches(&self, word: Word) -> bool {
         // novel insight.- because I have had to write a new algorithm to approach the problem
         // ... turns out I could re-use the implementation of Correctness::compute
+        // (In hindsight, it turns out that my algorithm was exactly the same as using
+        // coretness::compute)
         //
         // We assume guess = self.word && answer = word.
         //
@@ -32,41 +35,45 @@ impl Guess<'_> {
         //  ...  (i). are present
         //   ... (ii)  are not in the same position as the last guess, otherwise they would be Correct
         //   .. no Wrong characters of guess are in word
-        return Correctness::compute(word, &self.word) == self.mask;
+        return Correctness::compute(word, self.word) == self.mask;
     }
 }
 
 pub trait Guesser {
-    fn guess(&mut self, history: &[Guess<'_>]) -> String;
+    fn guess(&mut self, history: &[Guess]) -> Word;
 }
 
 pub struct Wordle {
-    pub dictionary: HashSet<&'static str>,
+    pub dictionary: Vec<Word>,
 }
 
 impl Wordle {
     pub fn new() -> Self {
         Self {
-            dictionary: HashSet::from_iter(DICTIONARY.lines().map(|line| {
+            dictionary: Vec::from_iter(DICTIONARY.lines().map(|line| {
                 line.split_once(" ")
                     .expect("Everry line is: Word + Space + Count")
                     .0
+                    .as_bytes()
+                    .try_into()
+                    .unwrap()
             })),
         }
     }
 
     pub fn play<G: Guesser>(&self, answer: &str, mut guesser: G) -> Option<usize> {
+        let answer_b: [u8; 5] = answer.as_bytes().try_into().unwrap();
         let mut history = Vec::new();
         for i in 1..=6 {
             let guess = guesser.guess(&history);
-            assert!(self.dictionary.contains(&*guess));
-            if answer == &guess {
+            assert!(self.dictionary.contains(&guess));
+            if answer_b == guess {
                 return Some(i);
             }
 
-            let coretness = Correctness::compute(answer, &guess);
+            let coretness = Correctness::compute(answer_b, guess);
             history.push(Guess {
-                word: Cow::Owned(guess),
+                word: guess,
                 mask: coretness,
             });
             //
@@ -100,7 +107,7 @@ impl Wordle {
 }
 
 impl Correctness {
-    pub fn compute(answer: &str, guess: &str) -> [Correctness; 5] {
+    pub fn compute(answer: Word, guess: Word) -> [Correctness; 5] {
         // check the lenght of answer ang guess
         assert_eq!(answer.len(), 5);
         assert_eq!(guess.len(), 5);
@@ -111,7 +118,7 @@ impl Correctness {
         let mut checked = [false; 5]; // used to annotate guess
 
         // Green
-        for (i, (a, g)) in answer.chars().zip(guess.chars()).enumerate() {
+        for (i, (a, g)) in answer.iter().zip(guess.iter()).enumerate() {
             if a == g {
                 c[i] = Correctness::Correct;
                 marked[i] = true;
@@ -120,10 +127,10 @@ impl Correctness {
         }
 
         // Misplaced
-        for (i, g) in guess.chars().enumerate() {
+        for (i, g) in guess.iter().enumerate() {
             if !checked[i] {
                 checked[i] = true;
-                if answer.chars().enumerate().any(|(k, a)| {
+                if answer.iter().enumerate().any(|(k, a)| {
                     if !marked[k] && a == g {
                         marked[k] = true;
                         return true;
@@ -198,10 +205,68 @@ macro_rules! check_matches {
     };
 }
 
-pub enum CowUser<'a, B>
-where
-    B: 'a + ToOwned + ?Sized,
-{
-    Borrowed(&'a B),
-    Owned(<B as ToOwned>::Owned),
+pub struct ArgParser {
+    pub implementation: Implementation,
+    pub count: Option<usize>,
 }
+
+impl ArgParser {
+    fn new() -> Self {
+        ArgParser {
+            implementation: Implementation::Default,
+            count: None,
+        }
+    }
+
+    pub fn parser() -> ArgParser {
+        let mut val: ArgParser = ArgParser::new();
+        env::args().enumerate().into_iter().for_each(|(i, arg)| {
+            if i == 0 {
+            } else if i == 1 && arg != String::from("--implementation") {
+                eprintln!("expected '--implementation' found {}", arg);
+                process::exit(1);
+            } else if i == 2 {
+                let arg: &str = &*arg;
+                match arg {
+                    "naive" => val.implementation = Implementation::Naive,
+                    "allocs" => val.implementation = Implementation::Allocs,
+                    _ => {
+                        eprintln!("unknown implementation '{}'", arg);
+                        process::exit(1);
+                    }
+                }
+            } else if i == 3 && arg != String::from("--max") {
+                eprintln!("expected '--max' found '{}'", arg);
+                process::exit(1);
+            } else if i == 4 {
+                let count: usize = arg.parse().unwrap_or_else(|_| {
+                    eprintln!("expected a digit but found '{}'", arg);
+                    process::exit(1);
+                });
+
+                if count == 0 {
+                } else {
+                    val.count = Some(count);
+                }
+            }
+        });
+        val
+    }
+}
+
+#[derive(Debug)]
+pub enum Implementation {
+    Default,
+    Allocs,
+    Naive,
+}
+
+/* impl FromStr for Implementation {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "naive" => Ok(Self::Naive),
+            _ => Err(format!("unknown implementation '{}'", s)),
+        }
+    }
+} */
