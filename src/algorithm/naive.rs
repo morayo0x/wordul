@@ -1,6 +1,7 @@
 use crate::{Correctness, Word};
 #[allow(unused_imports)]
 use crate::{Guess, Guesser, DICTIONARY};
+
 pub struct Naive {
     pub remaining: Vec<(Word, usize)>,
 }
@@ -48,8 +49,7 @@ impl Guesser for Naive {
 
         //let total_remaining = self.remaining.iter().count() as f64;
         let mut best: Option<Candidate> = None;
-
-        for &(word, _) in &self.remaining {
+        for &(word, count) in &self.remaining {
             let mut goodness = 0.0;
 
             for pattern in Correctness::compose() {
@@ -64,7 +64,6 @@ impl Guesser for Naive {
                     .matches(candidate))
                     {
                         total += count;
-                        //total += 1;
                     }
                 }
                 let p_word = total as f64 / total_remaining as f64;
@@ -74,7 +73,9 @@ impl Guesser for Naive {
                     goodness += -p_word * p_word.log2();
                 }
             }
-
+            // Applying weight to the goodness based on the likelihood of each word;
+            let p_word = count as f64 / total_remaining;
+            let goodness = p_word * goodness;
             match best {
                 Some(c) => {
                     if goodness > c.goodness {
