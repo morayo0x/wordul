@@ -17,7 +17,7 @@ pub struct Guess {
 }
 
 impl Guess {
-    // the function of matches is to check whether the potential next guess = word
+    // the work of matches is to check whether the potential next guess = word
     // ... by making sure that it contains all the Correct, Misplaced, and NO Wrong character
     // ... using the coretness of the previous guess = self.word
     pub fn matches(&self, word: Word) -> bool {
@@ -64,7 +64,7 @@ impl Wordle {
     pub fn play<G: Guesser>(&self, answer: &str, mut guesser: G) -> Option<usize> {
         let answer_b: [u8; 5] = answer.as_bytes().try_into().unwrap();
         let mut history = Vec::new();
-        for i in 1..=6 {
+        for i in 1..=9 {
             let guess = guesser.guess(&history);
             assert!(self.dictionary.contains(&guess));
             if answer_b == guess {
@@ -229,7 +229,6 @@ impl ArgParser {
                 let arg: &str = &*arg;
                 match arg {
                     "naive" => val.implementation = Implementation::Naive,
-                    "allocs" => val.implementation = Implementation::Allocs,
                     _ => {
                         eprintln!("unknown implementation '{}'", arg);
                         process::exit(1);
@@ -257,16 +256,5 @@ impl ArgParser {
 #[derive(Debug)]
 pub enum Implementation {
     Default,
-    Allocs,
     Naive,
 }
-
-/* impl FromStr for Implementation {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "naive" => Ok(Self::Naive),
-            _ => Err(format!("unknown implementation '{}'", s)),
-        }
-    }
-} */
